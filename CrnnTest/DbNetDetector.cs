@@ -28,13 +28,13 @@ namespace CrnnTest
             int origH = image.Height;
             int inputSize = 960;
 
-            // 1. CLAHE 적용
+            // CLAHE 적용 대비 향상
             Mat claheImg = new Mat();
             CvInvoke.CvtColor(image, claheImg, ColorConversion.Bgr2Gray);
             CvInvoke.CLAHE(claheImg, 2.0, new Size(8, 8), claheImg);
             CvInvoke.CvtColor(claheImg, claheImg, ColorConversion.Gray2Bgr);
 
-            // 2. Letterbox (비율 유지)
+            // 2. Letterbox (비율 유지) 리사이징 + 패딩(검정색으로)
             float scale = Math.Min((float)inputSize / origW, (float)inputSize / origH);
             int resizedW = (int)(origW * scale);
             int resizedH = (int)(origH * scale);
@@ -53,7 +53,7 @@ namespace CrnnTest
             resizedImg.CopyTo(paddedImg);
             paddedImg.ROI = Rectangle.Empty;
 
-            // 3. NHWC → NCHW
+            // 3. NHWC → NCHW 변환하고 추론
             var data = paddedImg.Data;
             float[] inputData = new float[3 * inputSize * inputSize];
             int idx = 0;
@@ -63,7 +63,7 @@ namespace CrnnTest
                         inputData[idx++] = data[i, j, c];
 
             var tensor = new DenseTensor<float>(inputData, new[] { 1, 3, inputSize, inputSize });
-            var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("x", tensor) };
+            var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input", tensor) };//학습 모델은 input 영어 모델은 x
             var results = session.Run(inputs);
             var output = results.First().AsTensor<float>();
 

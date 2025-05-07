@@ -155,7 +155,7 @@ namespace CrnnTest
             Mat imgWithBoxes = inputImage.Clone();
 
             // 1. Detection: DBNet으로 텍스트 박스 탐지
-            string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "en_PP-OCRv3_det_infer.onnx");
+            string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "ocr_ctc_model.onnx");
             DbNetDetector dbnet = new DbNetDetector(modelPath);
             List<Rectangle> detectedBoxes = dbnet.Detect(inputImage);
 
