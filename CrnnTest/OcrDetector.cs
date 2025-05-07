@@ -16,32 +16,16 @@ namespace CrnnTest
 
         public Mat CropAndResize(Mat src, Rectangle roi, int width, int height)
         {
-            if (src == null || src.IsEmpty)
-            {
-                Console.WriteLine("입력 이미지가 null이거나 비어 있음");
-                return new Mat(); // 빈 Mat 반환
-            }
-
             Rectangle safeRoi = ClampRoi(roi, src.Size);
-
             if (safeRoi.Width <= 0 || safeRoi.Height <= 0)
             {
-                Console.WriteLine($"잘못된 ROI: {safeRoi}");
-                return new Mat(src.Size, DepthType.Cv8U, 3); // 대체용
+                // 빈 이미지 반환
+                return new Mat(src.Size, DepthType.Cv8U, 3); // 혹은 null 처리
             }
 
-            if (safeRoi.X + safeRoi.Width > src.Width || safeRoi.Y + safeRoi.Height > src.Height)
-            {
-                Console.WriteLine($"ROI 초과: {safeRoi} / Image Size: {src.Width}x{src.Height}");
-                return new Mat(src.Size, DepthType.Cv8U, 3);
-            }
-
-            Mat cropped = new Mat(src, safeRoi);
             Mat resized = new Mat();
-            CvInvoke.Resize(cropped, resized, new Size(width, height));
             return resized;
         }
-
         private Rectangle ClampRoi(Rectangle roi, Size imgSize)
         {
             int x = Math.Max(0, roi.X);

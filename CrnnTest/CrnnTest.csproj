@@ -129,6 +129,7 @@
     <Compile Include="OcrRecognizer.cs" />
     <Compile Include="OcrRecognizer2.cs" />
     <Compile Include="OcrResult.cs" />
+    <Compile Include="DbNetDetector.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="MainForm.resx">

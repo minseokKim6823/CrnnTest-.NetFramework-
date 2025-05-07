@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
 
 namespace CrnnTest
 {
@@ -140,8 +143,6 @@ namespace CrnnTest
             }
         }
 
-        
-
         private void RUN_Click(object sender, EventArgs e)
         {
             if (inputImage == null || inputImage.IsEmpty)
@@ -150,13 +151,39 @@ namespace CrnnTest
                 return;
             }
 
-            var result = pipeline.Run(inputImage);
-            resultTextBox.Text = result.ToString();
+            // 복제 이미지
+            Mat imgWithBoxes = inputImage.Clone();
 
+            // 1. Detection: DBNet으로 텍스트 박스 탐지
+            string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "en_PP-OCRv3_det_infer.onnx");
+            DbNetDetector dbnet = new DbNetDetector(modelPath);
+            List<Rectangle> detectedBoxes = dbnet.Detect(inputImage);
+
+            foreach (var rect in detectedBoxes)
+            {
+                CvInvoke.Rectangle(imgWithBoxes, rect, new MCvScalar(0, 0, 255), 2);  // 빨간색 박스
+            }
+
+            // 2. OCR 파이프라인
+            var result = pipeline.Run(inputImage);  // result.BoxImg도 있음
+
+            // 3. OCR 고정된 박스도 표시 (serial, amount, micr 영역)
             if (result.BoxImg != null)
             {
-                pictureBox.Image = result.BoxImg.ToBitmap();
+                Bitmap baseBitmap = imgWithBoxes.ToBitmap();         // 원본 + detection 박스
+                Bitmap ocrBitmap = result.BoxImg.ToBitmap();         // OCR 박스 그려진 것
+
+                using (Graphics g = Graphics.FromImage(baseBitmap))
+                {
+                    g.DrawImage(ocrBitmap, 0, 0); // 겹쳐서 그림
+                }
+
+                pictureBox.Image = baseBitmap;
             }
+
+            // 4. 화면에 출력
+            pictureBox.Image = imgWithBoxes.ToBitmap();
+            resultTextBox.Text = result.ToString();
         }
 
         private void resultTextBox_TextChanged(object sender, EventArgs e)

@@ -23,17 +23,22 @@ namespace CrnnTest
         {
             Size imgSize = image.Size;
 
-            // 보정된 ROI
-            var serialRoi = ClampRoi(new Rectangle(700, 120, 160, 48), imgSize);
-            var amountRoi = ClampRoi(new Rectangle(230, 250, 320, 48), imgSize);
-            var micrRoi = ClampRoi(new Rectangle(0, 20, image.Width, 100), imgSize);
-
+            // 비율 기반 ROI 정의 (x,y,width,height)
+            var serialRoi = GetRoiByRatio(image, 0.6f, 0.12f, 0.25f, 0.1f);  // 일련번호
+            var amountRoi = GetRoiByRatio(image, 0.18f, 0.23f, 0.4f, 0.15f); // 금액
+            var micrRoi = GetRoiByRatio(image, 0f, 0.85f, 1f, 0.15f);         // MICR
 
             var serial = rec1.Run(detector.CropAndResize(image, serialRoi, 320, 48));
             var amount = rec1.Run(detector.CropAndResize(image, amountRoi, 320, 48));
-            var micr = rec2.Run(new Mat(image, micrRoi).Clone());
+            var micr = rec2.Run(detector.CropAndResize(image, micrRoi, micrRoi.Width, micrRoi.Height));
 
-            return new OcrResult(serial, amount, micr);
+            // 박스 그리기
+            Mat boxImg = image.Clone();
+            //CvInvoke.Rectangle(boxImg, serialRoi, new MCvScalar(0, 0, 255), 2);
+            //CvInvoke.Rectangle(boxImg, amountRoi, new MCvScalar(0, 255, 0), 2);
+            //CvInvoke.Rectangle(boxImg, micrRoi, new MCvScalar(255, 0, 0), 2);
+
+            return new OcrResult(serial, amount, micr, boxImg);
         }
 
         private Rectangle ClampRoi(Rectangle roi, Size imgSize)
@@ -55,5 +60,16 @@ namespace CrnnTest
 
             return new Rectangle(x, y, width, height);
         }
+
+        private Rectangle GetRoiByRatio(Mat image, float xRatio, float yRatio, float wRatio, float hRatio)
+        {
+            int x = (int)(xRatio * image.Width);
+            int y = (int)(yRatio * image.Height);
+            int width = (int)(wRatio * image.Width);
+            int height = (int)(hRatio * image.Height);
+
+            return ClampRoi(new Rectangle(x, y, width, height), image.Size);
+        }
+
     }
 }
