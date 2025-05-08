@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using Emgu.CV;
 using Emgu.CV.Structure;
 
@@ -15,28 +17,57 @@ namespace CrnnTest
         public OcrPipeline()
         {
             detector = new OcrDetector("en_PP-OCRv3_det_infer.onnx");
+            //detector = new OcrDetector("ch_PP-OCRv4_det_infer.onnx");
             rec1 = new OcrRecognizer("num_rec_250312.onnx");
             rec2 = new OcrRecognizer2("micr_rec_250313.onnx");
             //micr_dict.txt
         }
-        public OcrResult Run(Mat image)
+        public OcrResult Run(Mat image, List<Rectangle> detectedBoxes)
         {
             Size imgSize = image.Size;
 
-            // 비율 기반 ROI 정의 (x,y,width,height)
-            var serialRoi = GetRoiByRatio(image, 0.6f, 0.12f, 0.25f, 0.1f);  // 일련번호
-            var amountRoi = GetRoiByRatio(image, 0.18f, 0.23f, 0.4f, 0.15f); // 금액
-            var micrRoi = GetRoiByRatio(image, 0f, 0.85f, 1f, 0.15f);         // MICR
+            var serialRoi = GetRoiByRatio(image, 0.6f, 0.12f, 0.25f, 0.1f);
+            var amountRoi = GetRoiByRatio(image, 0.18f, 0.21f, 0.4f, 0.1f);
+            var micrRoi = GetRoiByRatio(image, 0f, 0.85f, 1f, 0.18f);
 
-            var serial = rec1.Run(detector.CropAndResize(image, serialRoi, 320, 48));
-            var amount = rec1.Run(detector.CropAndResize(image, amountRoi, 320, 48));
-            var micr = rec2.Run(detector.CropAndResize(image, micrRoi, micrRoi.Width, micrRoi.Height));
+            string serial = "", amount = "", micr = "";
 
-            // 박스 그리기
             Mat boxImg = image.Clone();
-            //CvInvoke.Rectangle(boxImg, serialRoi, new MCvScalar(0, 0, 255), 2);
-            //CvInvoke.Rectangle(boxImg, amountRoi, new MCvScalar(0, 255, 0), 2);
-            //CvInvoke.Rectangle(boxImg, micrRoi, new MCvScalar(255, 0, 0), 2);
+
+            foreach (var box in detectedBoxes)
+            {
+                if (box.IntersectsWith(serialRoi) || box.IntersectsWith(amountRoi) || box.IntersectsWith(micrRoi))
+                {
+                    CvInvoke.Rectangle(boxImg, box, new MCvScalar(255, 0, 0), 2);  // 노란색
+                }
+                else
+                {
+                    CvInvoke.Rectangle(boxImg, box, new MCvScalar(128, 128, 128), 1);  // 회색
+                }
+            }
+
+            List<string> micrParts = new List<string>();
+
+            foreach (var box in detectedBoxes.OrderBy(b => b.X)) // 왼쪽부터 오른쪽 정렬
+            {
+                if (box.IntersectsWith(serialRoi))
+                {
+                    var cropped = detector.CropAndResize(image, box, 320, 48);
+                    serial = rec1.Run(cropped);
+                }
+                else if (box.IntersectsWith(amountRoi))
+                {
+                    var cropped = detector.CropAndResize(image, box, 320, 48);
+                    amount = rec1.Run(cropped);
+                }
+                else if (box.IntersectsWith(micrRoi))
+                {
+                    var cropped = detector.CropAndResize(image, box, 320, 48);
+                    micrParts.Add(rec2.Run(cropped));
+                }
+            }
+
+            micr = string.Join("   ", micrParts);
 
             return new OcrResult(serial, amount, micr, boxImg);
         }

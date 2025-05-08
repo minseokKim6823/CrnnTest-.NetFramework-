@@ -38,22 +38,24 @@ namespace CrnnTest
             float scale = Math.Min((float)inputSize / origW, (float)inputSize / origH);
             int resizedW = (int)(origW * scale);
             int resizedH = (int)(origH * scale);
-            Rectangle roi = new Rectangle((inputSize - resizedW) / 2, (inputSize - resizedH) / 2, resizedW, resizedH);
 
             Mat resized = new Mat();
             CvInvoke.Resize(claheImg, resized, new Size(resizedW, resizedH));
             resized.ConvertTo(resized, DepthType.Cv32F, 1.0 / 255);
-
-            // padded 이미지 생성 및 ROI 복사
-            Image<Bgr, float> paddedImg = new Image<Bgr, float>(inputSize, inputSize);
-            paddedImg.SetZero();
+            // resized 된 이미지가 float32로 정규화되어 있음
             Image<Bgr, float> resizedImg = resized.ToImage<Bgr, float>();
 
-            paddedImg.ROI = roi;
-            resizedImg.CopyTo(paddedImg);
+            // 검정색 배경의 padded 이미지
+            Image<Bgr, float> paddedImg = new Image<Bgr, float>(inputSize, inputSize);
+            paddedImg.SetZero();
+
+            // 중심 정렬 위치
+            Rectangle roi = new Rectangle((inputSize - resizedW) / 2, (inputSize - resizedH) / 2, resizedW, resizedH);
+            paddedImg.ROI = roi; // ✅ ROI 먼저 설정해야 함
+            resizedImg.CopyTo(paddedImg); // ✅ 그 다음 복사
             paddedImg.ROI = Rectangle.Empty;
 
-            // 3. NHWC → NCHW 변환하고 추론
+            // 추론용 데이터 준비 (NCHW: [1,3,960,960])
             var data = paddedImg.Data;
             float[] inputData = new float[3 * inputSize * inputSize];
             int idx = 0;
@@ -62,8 +64,9 @@ namespace CrnnTest
                     for (int j = 0; j < inputSize; j++)
                         inputData[idx++] = data[i, j, c];
 
-            var tensor = new DenseTensor<float>(inputData, new[] { 1, 3, inputSize, inputSize });
-            var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input", tensor) };//학습 모델은 input 영어 모델은 x
+            var tensor = new DenseTensor<float>(inputData, new[] { 1, 3, 960, 960 });
+
+            var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("x", tensor) };//학습 모델(ocr_ctc_model.onnx)은 input num모델은 x
             var results = session.Run(inputs);
             var output = results.First().AsTensor<float>();
 
@@ -94,11 +97,12 @@ namespace CrnnTest
                 Rectangle rect = CvInvoke.BoundingRectangle(contours[i]);
                 if (rect.Width > boxSizeThresh && rect.Height > boxSizeThresh)
                 {
+                    int padding = 5;
                     Rectangle corrected = new Rectangle(
-                        (int)((rect.X - roi.X) / scale),
-                        (int)((rect.Y - roi.Y) / scale),
-                        (int)(rect.Width / scale),
-                        (int)(rect.Height / scale)
+                        Math.Max(0, (int)((rect.X - roi.X) / scale) - padding),
+                        Math.Max(0, (int)((rect.Y - roi.Y) / scale) - padding),
+                        Math.Min(origW - (int)((rect.X - roi.X) / scale), (int)(rect.Width / scale) + 2 * padding),
+                        Math.Min(origH - (int)((rect.Y - roi.Y) / scale), (int)(rect.Height / scale) + 2 * padding)
                     );
 
                     if (corrected.X >= 0 && corrected.Y >= 0 && corrected.Right <= origW && corrected.Bottom <= origH)

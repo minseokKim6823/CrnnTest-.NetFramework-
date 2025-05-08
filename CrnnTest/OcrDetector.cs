@@ -23,7 +23,9 @@ namespace CrnnTest
                 return new Mat(src.Size, DepthType.Cv8U, 3); // 혹은 null 처리
             }
 
+            Mat cropped = new Mat(src, safeRoi);
             Mat resized = new Mat();
+            CvInvoke.Resize(cropped, resized, new Size(width, height));
             return resized;
         }
         private Rectangle ClampRoi(Rectangle roi, Size imgSize)

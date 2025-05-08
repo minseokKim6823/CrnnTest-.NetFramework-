@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
@@ -51,6 +52,7 @@ namespace CrnnTest
             this.pictureBox.Size = new System.Drawing.Size(1015, 451);
             this.pictureBox.TabIndex = 0;
             this.pictureBox.TabStop = false;
+            this.pictureBox.Click += new System.EventHandler(this.pictureBox_Click);
             // 
             // resultTextBox
             // 
@@ -145,6 +147,8 @@ namespace CrnnTest
 
         private void RUN_Click(object sender, EventArgs e)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             if (inputImage == null || inputImage.IsEmpty)
             {
                 MessageBox.Show("이미지를 먼저 업로드해주세요.");
@@ -155,17 +159,17 @@ namespace CrnnTest
             Mat imgWithBoxes = inputImage.Clone();
 
             // 1. Detection: DBNet으로 텍스트 박스 탐지
-            string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "ocr_ctc_model.onnx");
+            string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "en_PP-OCRv3_det_infer.onnx");
             DbNetDetector dbnet = new DbNetDetector(modelPath);
             List<Rectangle> detectedBoxes = dbnet.Detect(inputImage);
 
-            foreach (var rect in detectedBoxes)
-            {
-                CvInvoke.Rectangle(imgWithBoxes, rect, new MCvScalar(0, 0, 255), 2);  // 빨간색 박스
-            }
+            //foreach (var rect in detectedBoxes)
+            //{
+            //    CvInvoke.Rectangle(imgWithBoxes, rect, new MCvScalar(0, 0, 255), 2);  // 빨간색 박스
+            //}
 
             // 2. OCR 파이프라인
-            var result = pipeline.Run(inputImage);  // result.BoxImg도 있음
+            var result = pipeline.Run(inputImage, detectedBoxes);  // result.BoxImg도 있음
 
             // 3. OCR 고정된 박스도 표시 (serial, amount, micr 영역)
             if (result.BoxImg != null)
@@ -180,13 +184,24 @@ namespace CrnnTest
 
                 pictureBox.Image = baseBitmap;
             }
+            else
+            {
+                pictureBox.Image = imgWithBoxes.ToBitmap();
+            }
 
             // 4. 화면에 출력
-            pictureBox.Image = imgWithBoxes.ToBitmap();
             resultTextBox.Text = result.ToString();
-        }
+
+            stopwatch.Stop();
+            resultTextBox.Text = result.ToString() +$"\n\n🕒 실행 시간: {stopwatch.ElapsedMilliseconds} ms";
+         }
 
         private void resultTextBox_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void pictureBox_Click(object sender, EventArgs e)
         {
 
         }
