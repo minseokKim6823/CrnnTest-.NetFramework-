@@ -21,7 +21,7 @@ namespace CrnnTest
 
         public override string ToString()
         {
-            return $"Serial1: {SerialText} \r\nAmount1: {AmountText} \r\nMICR1: {MicrText}";
+            return $"Serial: {SerialText} \r\nAmount: {AmountText} \r\nMICR: {MicrText}";
         }
     }
 }

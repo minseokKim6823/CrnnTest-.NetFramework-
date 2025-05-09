@@ -26,13 +26,12 @@ namespace CrnnTest
         {
             int origW = image.Width;
             int origH = image.Height;
-            int inputSize = 960;
+            int inputSize = 480;
 
             // CLAHE 적용 대비 향상
             Mat claheImg = new Mat();
             CvInvoke.CvtColor(image, claheImg, ColorConversion.Bgr2Gray);
             CvInvoke.CLAHE(claheImg, 2.0, new Size(8, 8), claheImg);
-            CvInvoke.CvtColor(claheImg, claheImg, ColorConversion.Gray2Bgr);
 
             // 2. Letterbox (비율 유지) 리사이징 + 패딩(검정색으로)
             float scale = Math.Min((float)inputSize / origW, (float)inputSize / origH);
@@ -51,8 +50,8 @@ namespace CrnnTest
 
             // 중심 정렬 위치
             Rectangle roi = new Rectangle((inputSize - resizedW) / 2, (inputSize - resizedH) / 2, resizedW, resizedH);
-            paddedImg.ROI = roi; // ✅ ROI 먼저 설정해야 함
-            resizedImg.CopyTo(paddedImg); // ✅ 그 다음 복사
+            paddedImg.ROI = roi; 
+            resizedImg.CopyTo(paddedImg); 
             paddedImg.ROI = Rectangle.Empty;
 
             // 추론용 데이터 준비 (NCHW: [1,3,960,960])
@@ -64,7 +63,7 @@ namespace CrnnTest
                     for (int j = 0; j < inputSize; j++)
                         inputData[idx++] = data[i, j, c];
 
-            var tensor = new DenseTensor<float>(inputData, new[] { 1, 3, 960, 960 });
+            var tensor = new DenseTensor<float>(inputData, new[] { 1, 3, 480, 480 });
 
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("x", tensor) };//학습 모델(ocr_ctc_model.onnx)은 input num모델은 x
             var results = session.Run(inputs);
@@ -97,7 +96,7 @@ namespace CrnnTest
                 Rectangle rect = CvInvoke.BoundingRectangle(contours[i]);
                 if (rect.Width > boxSizeThresh && rect.Height > boxSizeThresh)
                 {
-                    int padding = 5;
+                    int padding = 10;
                     Rectangle corrected = new Rectangle(
                         Math.Max(0, (int)((rect.X - roi.X) / scale) - padding),
                         Math.Max(0, (int)((rect.Y - roi.Y) / scale) - padding),

@@ -17,17 +17,15 @@ namespace CrnnTest
         public OcrPipeline()
         {
             detector = new OcrDetector("en_PP-OCRv3_det_infer.onnx");
-            //detector = new OcrDetector("ch_PP-OCRv4_det_infer.onnx");
             rec1 = new OcrRecognizer("num_rec_250312.onnx");
             rec2 = new OcrRecognizer2("micr_rec_250313.onnx");
-            //micr_dict.txt
         }
         public OcrResult Run(Mat image, List<Rectangle> detectedBoxes)
         {
             Size imgSize = image.Size;
 
-            var serialRoi = GetRoiByRatio(image, 0.6f, 0.12f, 0.25f, 0.1f);
-            var amountRoi = GetRoiByRatio(image, 0.18f, 0.21f, 0.4f, 0.1f);
+            var serialRoi = GetRoiByRatio(image, 0.7f, 0.15f, 0.1f, 0.1f);
+            var amountRoi = GetRoiByRatio(image, 0.27f, 0.25f, 0.3f, 0.05f);
             var micrRoi = GetRoiByRatio(image, 0f, 0.85f, 1f, 0.18f);
 
             string serial = "", amount = "", micr = "";
@@ -46,19 +44,21 @@ namespace CrnnTest
                 }
             }
 
+            List<string> serialParts = new List<string>();
+            List<string> amountParts = new List<string>();
             List<string> micrParts = new List<string>();
 
-            foreach (var box in detectedBoxes.OrderBy(b => b.X)) // 왼쪽부터 오른쪽 정렬
+            foreach (var box in detectedBoxes.OrderBy(b => b.X)) 
             {
                 if (box.IntersectsWith(serialRoi))
                 {
                     var cropped = detector.CropAndResize(image, box, 320, 48);
-                    serial = rec1.Run(cropped);
+                    serialParts.Add(rec1.Run(cropped));
                 }
                 else if (box.IntersectsWith(amountRoi))
                 {
                     var cropped = detector.CropAndResize(image, box, 320, 48);
-                    amount = rec1.Run(cropped);
+                    amountParts.Add(rec1.Run(cropped));
                 }
                 else if (box.IntersectsWith(micrRoi))
                 {
@@ -67,6 +67,8 @@ namespace CrnnTest
                 }
             }
 
+            serial = string.Join("   ", serialParts);
+            amount = string.Join("   ", amountParts);
             micr = string.Join("   ", micrParts);
 
             return new OcrResult(serial, amount, micr, boxImg);

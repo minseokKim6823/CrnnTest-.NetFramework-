@@ -31,19 +31,17 @@ namespace CrnnTest
                 throw new ArgumentException("입력 이미지가 null이거나 비어 있습니다.");
             }
 
-            // 1. Grayscale + Resize + Normalize
             Mat gray = new Mat();
-            CvInvoke.CvtColor(input, gray, ColorConversion.Bgr2Gray);
-            CvInvoke.Resize(gray, gray, new Size(320, 48));
-            gray.ConvertTo(gray, DepthType.Cv32F, 1.0 / 255);
+            CvInvoke.Resize(input, input, new Size(320, 48));
+            input.ConvertTo(input, DepthType.Cv32F, 1.0 / 255);
+            Image<Bgr, float> img = input.ToImage<Bgr, float>();
 
-            // 2. Mat → Tensor (1, 1, 48, 320)
-            var img = gray.ToImage<Gray, float>();
-            float[] inputData = new float[1 * 3 * 48 * 320];
+            float[] inputData = new float[3 * 48 * 320];
             int idx = 0;
-            for (int i = 0; i < 48; i++)
-                for (int j = 0; j < 320; j++)
-                    inputData[idx++] = img.Data[i, j, 0];
+            for (int c = 0; c < 3; c++)
+                for (int i = 0; i < 48; i++)
+                    for (int j = 0; j < 320; j++)
+                        inputData[idx++] = img.Data[i, j, c];
 
             var tensor = new DenseTensor<float>(inputData, new[] { 1, 3, 48, 320 });
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("x", tensor) };
@@ -51,18 +49,17 @@ namespace CrnnTest
             // 3. ONNX Inference
             var results = session.Run(inputs);
             var output = results.First().AsTensor<float>(); // (1, T, C)
-            var dims = output.Dimensions;
-            int T = dims[1], C = dims[2];
+            int T = output.Dimensions[1], C = output.Dimensions[2];
 
-            float[] probsFlat = output.ToArray();
+            float[] flat = output.ToArray();
             List<int> bestPath = new List<int>();
             for (int t = 0; t < T; t++)
             {
                 int maxIndex = 0;
-                float maxProb = probsFlat[t * C + 0];
+                float maxProb = flat[t * C + 0];
                 for (int c = 1; c < C; c++)
                 {
-                    float prob = probsFlat[t * C + c]; // [0, t, c]
+                    float prob = flat[t * C + c];
                     if (prob > maxProb)
                     {
                         maxProb = prob;
@@ -72,7 +69,7 @@ namespace CrnnTest
                 bestPath.Add(maxIndex);
             }
 
-            // 4. CTC 디코딩 (중복 제거 + blank 제거)
+            // 5. CTC Post-process (remove duplicates and blank=0)
             List<char> decoded = new List<char>();
             int prev = -1;
             foreach (int curr in bestPath)
