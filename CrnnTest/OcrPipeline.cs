@@ -24,7 +24,7 @@ namespace CrnnTest
         {
             Size imgSize = image.Size;
 
-            var serialRoi = GetRoiByRatio(image, 0.7f, 0.15f, 0.1f, 0.1f);
+            var serialRoi = GetRoiByRatio(image, 0.75f, 0.15f, 0.05f, 0.05f);
             var amountRoi = GetRoiByRatio(image, 0.27f, 0.25f, 0.3f, 0.05f);
             var micrRoi = GetRoiByRatio(image, 0f, 0.85f, 1f, 0.18f);
 
@@ -52,18 +52,24 @@ namespace CrnnTest
             {
                 if (box.IntersectsWith(serialRoi))
                 {
-                    var cropped = detector.CropAndResize(image, box, 320, 48);
+                    var cropped = detector.CropAndResize(image, box, 1000, 48);
                     serialParts.Add(rec1.Run(cropped));
+                    CvInvoke.Imshow("SerialCrop", cropped);
+                    CvInvoke.WaitKey(0);
                 }
                 else if (box.IntersectsWith(amountRoi))
                 {
                     var cropped = detector.CropAndResize(image, box, 320, 48);
                     amountParts.Add(rec1.Run(cropped));
+                    CvInvoke.Imshow("AmountCrop", cropped);
+                    CvInvoke.WaitKey(0);
                 }
                 else if (box.IntersectsWith(micrRoi))
                 {
                     var cropped = detector.CropAndResize(image, box, 320, 48);
                     micrParts.Add(rec2.Run(cropped));
+                    CvInvoke.Imshow("MicrCrop", cropped);
+                    CvInvoke.WaitKey(0);
                 }
             }
 

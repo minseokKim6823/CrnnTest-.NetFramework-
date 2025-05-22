@@ -19,7 +19,6 @@ namespace CrnnTest
             Rectangle safeRoi = ClampRoi(roi, src.Size);
             if (safeRoi.Width <= 0 || safeRoi.Height <= 0)
             {
-                // 빈 이미지 반환
                 return new Mat(src.Size, DepthType.Cv8U, 3); // 혹은 null 처리
             }
 
